@@ -88,15 +88,62 @@ exports.handler = async function(event) {
     let lecturer = lecturerQuery.data()
 
     // add the lecturer's name to the section Object
-    sectionObject.lecturerName = lecturer.name
-
-    // add the section Object to the return value
-    returnValue.sections.push(sectionObject)
+    sectionObject.lecturerName = lecturer.name    
 
     // 🔥 your code for the reviews/ratings goes here
+  
+    // ask Firebase for the reviews corresponding to the Document ID of the section, wait for the response
+    let reviewsQuery = await db.collection('reviews').where(`sectionId`, `==`, sectionId).get()
+
+    // get the documents from the query
+    let reviews = reviewsQuery.docs  
+
+    // create variable for the reviews within section
+    sectionObject.reviews = []
+    
+    // Calculate total number of reviews 
+    let SectionReviewsTotal = reviews.length
+    // Loop through reviews to calculate average rating 
+    let sumSectionReviews = 0
+    for (let j=0; j<reviews.length; j++) { 
+    
+      let reviewData = reviews[j].data()
+      
+      sectionObject.reviews.push(reviewData.body)
+      
+      sumSectionReviews = sumSectionReviews + reviewData.rating
+    }
+   
+    let averageRatingSection = (sumSectionReviews/SectionReviewsTotal)
+      
+    // push the results to the section object
+    
+    sectionObject.numberOfReviews = SectionReviewsTotal
+    sectionObject.averageRatingSection = averageRatingSection
+  
+    returnValue.sections.push(sectionObject)
+  
   }
 
-  // return the standard response
+ // Loop through the return value to calculate the total number of reviews for a course and average rating per course
+
+  let sumCourseReviews = 0
+  let numberOfCourseRatings = 0
+
+  for (let k=0; k< returnValue.sections.length ; k++)
+{
+  sumCourseReviews = sumCourseReviews + (returnValue.sections[k].numberOfReviews*returnValue.sections[k].averageRatingSection)
+  numberOfCourseRatings = numberOfCourseRatings + returnValue.sections[k].numberOfReviews
+}
+
+let averageCourseRating = (sumCourseReviews/numberOfCourseRatings)
+  
+// push the results to the return value object
+
+returnValue.averageCourseRating = averageCourseRating
+returnValue.totalNumberOfCourseReviews = numberOfCourseRatings
+
+// return the standard response
   return {
     statusCode: 200,
     body: JSON.stringify(returnValue)
